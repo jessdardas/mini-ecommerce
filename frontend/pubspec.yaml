@@ -35,6 +35,8 @@ dependencies:
   shared_preferences: ^2.1.1
   fluttertoast: ^8.2.1   # optional for toasts
   jwt_decoder: ^2.0.1
+ 
+
 
   # Cupertino Icons
   cupertino_icons: ^1.0.8

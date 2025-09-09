@@ -20,6 +20,7 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
     );
+
     final data = _parseResponse(res);
 
     if (data.containsKey('token')) {
@@ -35,6 +36,7 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
     );
+
     return _parseResponse(res);
   }
 
@@ -61,10 +63,51 @@ class ApiService {
     final token = await TokenStorage.getToken();
     final res = await http.post(
       Uri.parse('$base/api/orders'),
-      headers: _authHeaders(token)..addAll({'Content-Type': 'application/json'}),
+      headers: _authHeaders(token),
       body: jsonEncode({'items': items}),
     );
+
     return _parseResponse(res);
+  }
+
+  // -------------------
+  // Fetch past orders
+  // -------------------
+
+  static Future<List<Map<String, dynamic>>> fetchPastOrders() async {
+    try {
+      final token = await TokenStorage.getToken();
+      final response = await http.get(
+        Uri.parse("${base}/api/orders/me"),
+        headers: _authHeaders(token),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((order) {
+          final items = (order['items'] as List<dynamic>).map((item) {
+            return {
+              'id': item['id'],
+              'productId': item['product']?['id'] ?? item['id'],
+              'quantity': item['quantity'],
+              'price': item['price'],
+            };
+          }).toList();
+
+          return {
+            'id': order['id'],
+            'userId': order['userId'],
+            'createdAt': order['createdAt'],
+            'items': items,
+          };
+        }).toList();
+      } else {
+        throw Exception("Failed to fetch past orders");
+      }
+    } catch (e) {
+      print("Error fetching past orders: $e");
+      return [];
+    }
   }
 
   // -------------------
@@ -72,22 +115,20 @@ class ApiService {
   // -------------------
 
   static Map<String, String> _authHeaders(String? token) {
-    final headers = <String, String>{};
-    if (token != null) headers['Authorization'] = 'Bearer $token';
-    return headers;
+    return {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    };
   }
 
   static dynamic _parseResponse(http.Response res) {
-    if (res.statusCode == 204) return {};
-    final decoded = res.body.isNotEmpty ? jsonDecode(res.body) : null;
-
-    if (res.statusCode >= 200 && res.statusCode < 300) return decoded ?? {};
-
-    if (res.statusCode == 401) {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return res.body.isNotEmpty ? jsonDecode(res.body) : {};
+    } else if (res.statusCode == 401) {
       TokenStorage.clearToken();
       throw Exception('Unauthorized - please login again.');
+    } else {
+      throw Exception('API Error ${res.statusCode}: ${res.body}');
     }
-
-    throw Exception('API Error ${res.statusCode}: ${res.body}');
   }
 }

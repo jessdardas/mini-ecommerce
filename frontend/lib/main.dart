@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:provider/provider.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/catalog_screen.dart';
 import 'screens/admin_home_screen.dart';
+import 'providers/cart_provider.dart';
+
 
 void main() {
-  runApp(const MiniEcommerceApp());
+  runApp( MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+      ],
+      child: const MiniEcommerceApp(), 
+    ),
+  );
 }
 
 class MiniEcommerceApp extends StatelessWidget {
