@@ -3,12 +3,16 @@ class Product {
   final String name;
   final double price;
   final String description;
+  final int stock;
+  final String imageUrl; 
 
   Product({
     required this.id,
     required this.name,
     required this.price,
     required this.description,
+    required this.stock,
+    required this.imageUrl,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -17,6 +21,8 @@ class Product {
       name: json['name'],
       price: (json['price'] as num).toDouble(),
       description: json['description'],
+      stock: json['stock'],
+      imageUrl: json['imageUrl'] ?? '',
     );
   }
 }

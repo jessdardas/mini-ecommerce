@@ -1,14 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../utils/token_storage.dart';
+import '../services/token_storage.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
-
-
+import '../models/product.dart';
 
 class ApiService {
-  // Base URL, automatically resolves depending on platform
+  // Base URL depending on platform
   static String get base {
-    // Use localhost for web; mobile emulator uses 10.0.2.2 for Android emulator
     return kIsWeb ? 'http://localhost:8080' : 'http://10.0.2.2:8080';
   }
 
@@ -24,7 +22,6 @@ class ApiService {
     );
     final data = _parseResponse(res);
 
-    // Save token automatically
     if (data.containsKey('token')) {
       await TokenStorage.saveToken(data['token']);
     }
@@ -45,14 +42,15 @@ class ApiService {
   // PRODUCTS
   // -------------------
 
-  static Future<List<dynamic>> getProducts() async {
-    final token = await TokenStorage.getToken();
-    final res = await http.get(
-      Uri.parse('$base/api/products'),
-      headers: _authHeaders(token),
-    );
-    final body = _parseResponse(res);
-    return body as List<dynamic>;
+  static Future<List<Product>> fetchProducts() async {
+    final res = await http.get(Uri.parse('$base/api/products'));
+
+    if (res.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(res.body);
+      return data.map((json) => Product.fromJson(json)).toList();
+    } else {
+      throw Exception("Failed to load products: ${res.body}");
+    }
   }
 
   // -------------------
