@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../services/token_storage.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
+import '../services/token_storage.dart';
 import '../models/product.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 
 class ApiService {
   // Base URL depending on platform
@@ -55,6 +57,22 @@ class ApiService {
     }
   }
 
+  static Future<Product> addProduct(String name, double price, String description, int stock) async {
+    final token = await TokenStorage.getToken();
+    final res = await http.post(
+      Uri.parse('$base/api/products'),
+      headers: _authHeaders(token),
+      body: jsonEncode({
+        'name': name,
+        'price': price,
+        'description': description,
+        'quantity': stock,
+      }),
+    );
+
+    return Product.fromJson(_parseResponse(res));
+  }
+
   // -------------------
   // ORDERS
   // -------------------
@@ -70,43 +88,67 @@ class ApiService {
     return _parseResponse(res);
   }
 
-  // -------------------
-  // Fetch past orders
-  // -------------------
-
   static Future<List<Map<String, dynamic>>> fetchPastOrders() async {
-    try {
-      final token = await TokenStorage.getToken();
-      final response = await http.get(
-        Uri.parse("${base}/api/orders/me"),
-        headers: _authHeaders(token),
-      );
+    final token = await TokenStorage.getToken();
+    final response = await http.get(
+      Uri.parse("$base/api/orders/me"),
+      headers: _authHeaders(token),
+    );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((order) {
-          final items = (order['items'] as List<dynamic>).map((item) {
-            return {
-              'id': item['id'],
-              'productId': item['product']?['id'] ?? item['id'],
-              'quantity': item['quantity'],
-              'price': item['price'],
-            };
-          }).toList();
-
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((order) {
+        final items = (order['items'] as List<dynamic>).map((item) {
           return {
-            'id': order['id'],
-            'userId': order['userId'],
-            'createdAt': order['createdAt'],
-            'items': items,
+            'id': item['id'],
+            'productId': item['product']?['id'] ?? item['id'],
+            'quantity': item['quantity'],
+            'price': item['price'],
           };
         }).toList();
-      } else {
-        throw Exception("Failed to fetch past orders");
-      }
-    } catch (e) {
-      print("Error fetching past orders: $e");
-      return [];
+
+        return {
+          'id': order['id'],
+          'userId': order['userId'],
+          'createdAt': order['createdAt'],
+          'items': items,
+        };
+      }).toList();
+    } else {
+      throw Exception("Failed to fetch past orders");
+    }
+  }
+
+  // -------------------
+  // ADMIN
+  // -------------------
+
+  static Future<List<Map<String, dynamic>>> fetchAllOrders() async {
+    final token = await TokenStorage.getToken();
+    final res = await http.get(
+      Uri.parse('$base/api/admin/orders'),
+      headers: _authHeaders(token),
+    );
+
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body));
+    } else {
+      throw Exception("Failed to fetch all orders: ${res.body}");
+    }
+  }
+
+  static Future<List<Product>> fetchLowStock() async {
+    final token = await TokenStorage.getToken();
+    final res = await http.get(
+      Uri.parse('$base/api/admin/low-stock'),
+      headers: _authHeaders(token),
+    );
+
+    if (res.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(res.body);
+      return data.map((json) => Product.fromJson(json)).toList();
+    } else {
+      throw Exception("Failed to fetch low stock: ${res.body}");
     }
   }
 

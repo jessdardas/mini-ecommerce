@@ -8,16 +8,29 @@ import 'screens/catalog_screen.dart';
 import 'screens/admin_home_screen.dart';
 import 'providers/cart_provider.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
-  runApp( MultiProvider(
+Future<void> main() async {
+  await dotenv.load(fileName: ".env");
+  runApp(MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CartProvider()),
       ],
       child: const MiniEcommerceApp(), 
     ),
-  );
+  );;
 }
+
+
+// void main() {
+//   runApp( MultiProvider(
+//       providers: [
+//         ChangeNotifierProvider(create: (_) => CartProvider()),
+//       ],
+//       child: const MiniEcommerceApp(), 
+//     ),
+//   );
+// }
 
 class MiniEcommerceApp extends StatelessWidget {
   const MiniEcommerceApp({super.key});

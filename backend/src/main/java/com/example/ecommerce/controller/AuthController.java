@@ -48,7 +48,7 @@ public ResponseEntity<?> login(@RequestBody AuthRequest request) {
                 if (passwordEncoder.matches(request.getPassword(), user.getPassword())) {
                     try {
                         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
-                        return ResponseEntity.ok(new AuthResponse(token));
+                        return ResponseEntity.ok(new AuthResponse(token,user.getRole().name()));
                     } catch (Exception e) {
                         e.printStackTrace(); // log full error in console
                         return ResponseEntity.status(500).body("Token generation failed: " + e.getMessage());
@@ -69,5 +69,6 @@ public ResponseEntity<?> login(@RequestBody AuthRequest request) {
     @Data
     static class AuthResponse {
         private final String token;
+        private final String role;
     }
 }

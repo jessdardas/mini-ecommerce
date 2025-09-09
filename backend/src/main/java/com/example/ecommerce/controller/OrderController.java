@@ -35,23 +35,16 @@ public class OrderController {
     }
 
     // ==========================
-    // Place order (user must be logged in)
+    // Place order (USER only)
     // ==========================
     @PostMapping("/orders")
     public ResponseEntity<?> placeOrder(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody OrderRequest orderRequest) {
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing or invalid token");
-        }
-
-        String token = authHeader.substring(7);
-        String email = jwtUtil.extractUsername(token);
-        User user = userRepository.findByEmail(email).orElse(null);
-
+        User user = validateUserFromToken(authHeader);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token user");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or missing token");
         }
 
         try {
@@ -63,20 +56,13 @@ public class OrderController {
     }
 
     // ==========================
-    // View own orders
+    // View own orders (USER only)
     // ==========================
     @GetMapping("/orders/me")
     public ResponseEntity<?> getUserOrders(@RequestHeader("Authorization") String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing or invalid token");
-        }
-
-        String token = authHeader.substring(7);
-        String email = jwtUtil.extractUsername(token);
-        User user = userRepository.findByEmail(email).orElse(null);
-
+        User user = validateUserFromToken(authHeader);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token user");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or missing token");
         }
 
         List<Order> orders = orderService.getUserOrders(user.getId());
@@ -87,13 +73,40 @@ public class OrderController {
     // Admin endpoints
     // ==========================
     @GetMapping("/admin/orders")
-    public List<Order> getAllOrders() {
-        return orderService.getAllOrders();
+    public ResponseEntity<?> getAllOrders(@RequestHeader("Authorization") String authHeader) {
+        if (!isAdmin(authHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admins only");
+        }
+        return ResponseEntity.ok(orderService.getAllOrders());
     }
 
     @GetMapping("/admin/low-stock")
-    public List<Product> getLowStockProducts() {
-        return productRepository.findByQuantityLessThan(5);
+    public ResponseEntity<?> getLowStockProducts(@RequestHeader("Authorization") String authHeader) {
+        if (!isAdmin(authHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admins only");
+        }
+        return ResponseEntity.ok(productRepository.findByQuantityLessThan(5));
+    }
+
+    // ==========================
+    // Helpers
+    // ==========================
+    private User validateUserFromToken(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        String token = authHeader.substring(7);
+        String email = jwtUtil.extractUsername(token);
+        return userRepository.findByEmail(email).orElse(null);
+    }
+
+    private boolean isAdmin(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return false;
+        }
+        String token = authHeader.substring(7);
+        String role = jwtUtil.extractRole(token);
+        return "ADMIN".equals(role);
     }
 
     // ==========================
@@ -101,7 +114,6 @@ public class OrderController {
     // ==========================
     static class ErrorResponse {
         private String message;
-
         public ErrorResponse(String message) { this.message = message; }
         public String getMessage() { return message; }
         public void setMessage(String message) { this.message = message; }

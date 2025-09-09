@@ -34,7 +34,9 @@ dependencies:
   http: ^1.1.0
   shared_preferences: ^2.1.1
   fluttertoast: ^8.2.1   # optional for toasts
-  jwt_decoder: ^2.0.1
+  jwt_decoder: ^2.0.
+  flutter_dotenv: ^5.1.0
+
  
 
 
