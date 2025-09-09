@@ -3,8 +3,11 @@ package com.example.ecommerce.controller;
 import com.example.ecommerce.dto.OrderRequest;
 import com.example.ecommerce.model.Order;
 import com.example.ecommerce.model.Product;
+import com.example.ecommerce.model.User;
 import com.example.ecommerce.repository.ProductRepository;
+import com.example.ecommerce.repository.UserRepository;
 import com.example.ecommerce.service.OrderService;
+import com.example.ecommerce.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,48 +24,73 @@ public class OrderController {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
     public OrderController(OrderService orderService) {
         this.orderService = orderService;
     }
 
     // ==========================
-    // User endpoint: place order
+    // Place order (user must be logged in)
     // ==========================
     @PostMapping("/orders")
-    public ResponseEntity<?> placeOrder(@RequestBody OrderRequest orderRequest) {
-        Long userId = 1L; // hardcoded for now
+    public ResponseEntity<?> placeOrder(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody OrderRequest orderRequest) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing or invalid token");
+        }
+
+        String token = authHeader.substring(7);
+        String email = jwtUtil.extractUsername(token);
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token user");
+        }
 
         try {
-            Order order = orderService.placeOrder(userId, orderRequest.getItems());
+            Order order = orderService.placeOrder(user.getId(), orderRequest.getItems());
             return ResponseEntity.status(HttpStatus.CREATED).body(order);
         } catch (Exception e) {
-            // Return 400 Bad Request with message
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                    new ErrorResponse(e.getMessage())
-            );
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(e.getMessage()));
         }
     }
 
     // ==========================
-    // User endpoint: view own orders
+    // View own orders
     // ==========================
     @GetMapping("/orders/me")
-    public List<Order> getUserOrders() {
-        Long userId = 1L; // hardcoded for now
-        return orderService.getUserOrders(userId);
+    public ResponseEntity<?> getUserOrders(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing or invalid token");
+        }
+
+        String token = authHeader.substring(7);
+        String email = jwtUtil.extractUsername(token);
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token user");
+        }
+
+        List<Order> orders = orderService.getUserOrders(user.getId());
+        return ResponseEntity.ok(orders);
     }
 
     // ==========================
-    // Admin endpoint: view all orders
+    // Admin endpoints
     // ==========================
     @GetMapping("/admin/orders")
     public List<Order> getAllOrders() {
         return orderService.getAllOrders();
     }
 
-    // ==========================
-    // Admin endpoint: low-stock products
-    // ==========================
     @GetMapping("/admin/low-stock")
     public List<Product> getLowStockProducts() {
         return productRepository.findByQuantityLessThan(5);
