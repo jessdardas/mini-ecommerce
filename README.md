@@ -19,8 +19,8 @@ flutter pub get
 # 4. Copy .env.example → .env and set API base
 cp .env
 # Inside .env, put:
-# API_BASE=http://10.0.2.2:8080   (for Android emulator)
-# API_BASE=http://localhost:8080  (for web/desktop)
+API_BASE=http://10.0.2.2:8080   (for Android emulator)
+API_BASE=http://localhost:8080  (for web/desktop)
 
 # 5. Run the app
 flutter run 
@@ -57,8 +57,6 @@ password: admin123
   * Add products
   * View all orders
   * See low stock products
-
-```
 
 ---
 
